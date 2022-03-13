@@ -18,16 +18,13 @@ $this->params['breadcrumbs'][] = $this->title;
 
     <h1><?= Html::encode($this->title) ?></h1>
 
-    <p>
-        <?php //  Html::a(Yii::t('app', 'Import CSV File'), ['create'], ['class' => 'btn btn-success']) ?>
-        <?= Html::a(Yii::t('app', 'Import Excel File'), ['import-excel'], ['class' => 'btn btn-success']) ?>
+    <p>        
+        <?= Html::a(Yii::t('app', 'Import Excel/CSV File'), ['import-excel'], ['class' => 'btn btn-success']) ?>
         <?= Html::a(Yii::t('app', 'Download Sample CSV File'), ['download-sample-csv'], ['class' => 'btn btn-info']) ?>
         <?= Html::a(Yii::t('app', 'Download Sample Excel File'), ['download-sample-excel'], ['class' => 'btn btn-info']) ?>
     </p>
 
     <?php Pjax::begin(); ?>
-    <?php // echo $this->render('_search', ['model' => $searchModel]);  ?>
-
     <?=
     GridView::widget([
         'dataProvider' => $dataProvider,
@@ -38,12 +35,10 @@ $this->params['breadcrumbs'][] = $this->title;
             'hostname',
             'loopback',
             'mac_address',
-            'created_at:datetime',            
+            'created_at:datetime',
             'updated_at:datetime',
         ],
     ]);
     ?>
-
     <?php Pjax::end(); ?>
-
 </div>

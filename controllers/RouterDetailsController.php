@@ -60,63 +60,20 @@ class RouterDetailsController extends Controller {
 
                 $handle = fopen($csvFile->tempName, 'r');
                 $row = 0;
-                $dataProvider = array();
+                $validateImportData = array();
                 while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                    $tempArr = array();
                     if ($row > 0) {
-                        $csvDataSapId = $data[0];
-                        $csvDataHostname = $data[1];
-                        $csvDataLoopback = $data[2];
-                        $csvDataMacAddr = $data[3];
-                        $tempDataProvider = array();
-
-                        $tempDataProvider['duplicate'] = false;
-
-                        if ($model->validateAlreadyExistsRecord($csvDataSapId, $csvDataHostname)) {
-                            $tempDataProvider['duplicate'] = true;
-                        }
-                        if ($model->validateHostnameExistsRecord($csvDataHostname)) {
-                            $tempDataProvider['duplicate'] = $model::DUPLICATE_RECORD_HIGHLIGHT;
-                        }
-                        $duplicateArrayExists = array_filter($dataProvider, function($val) use($csvDataSapId, $csvDataHostname) {
-                            return ($val['sap_id'] == $csvDataSapId and $val['hostname'] == $csvDataHostname);
-                        });
-                        if (count($duplicateArrayExists) > 0) {
-                            $tempDataProvider['duplicate'] = true;
-                        }
-                        $duplicateHostnameArr = array_filter($dataProvider, function($val) use($csvDataHostname) {
-                            return ($val['hostname'] == $csvDataHostname);
-                        });
-                        if (count($duplicateHostnameArr) > 0) {
-                            $tempDataProvider['duplicate'] = $model::DUPLICATE_RECORD_HIGHLIGHT;
-                        }
-
-                        $tempDataProvider['sap_id'] = $csvDataSapId;
-                        $tempDataProvider['sap_id_valid'] = true;
-                        if (!$model->validateSAPId($csvDataSapId)) {
-                            $tempDataProvider['sap_id_valid'] = false;
-                        }
-
-                        $tempDataProvider['hostname'] = $csvDataHostname;
-                        $tempDataProvider['hostname_valid'] = true;
-                        if (!$model->validateHostname($csvDataHostname)) {
-                            $tempDataProvider['hostname_valid'] = false;
-                        }
-
-                        $tempDataProvider['loopback'] = $csvDataLoopback;
-                        $tempDataProvider['loopback_valid'] = true;
-                        if (!$model->validateLoopback($csvDataLoopback)) {
-                            $tempDataProvider['loopback_valid'] = false;
-                        }
-
-                        $tempDataProvider['mac_address'] = $csvDataMacAddr;
-                        $tempDataProvider['mac_address_valid'] = true;
-                        if (!$model->validateMacAddr($csvDataMacAddr)) {
-                            $tempDataProvider['mac_address_valid'] = false;
-                        }
-                        $dataProvider[] = $tempDataProvider;
+                        $tempArr[] = $data[0];
+                        $tempArr[] = $data[1];
+                        $tempArr[] = $data[2];
+                        $tempArr[] = $data[3];
+                        $validateImportData[] = $tempArr;
                     }
                     $row++;
                 }
+
+                $dataProvider = $model->validateDataAndReformat($validateImportData);
 
                 return $this->render('verify-confirm', [
                             'model' => $model,
@@ -134,38 +91,6 @@ class RouterDetailsController extends Controller {
     }
 
     /**
-     * Updates an existing RouterDetails model.
-     * If update is successful, the browser will be redirected to the 'view' page.
-     * @param int $id ID
-     * @return string|\yii\web\Response
-     * @throws NotFoundHttpException if the model cannot be found
-     */
-    public function actionUpdate($id) {
-        $model = $this->findModel($id);
-
-        if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
-            return $this->redirect(['view', 'id' => $model->id]);
-        }
-
-        return $this->render('update', [
-                    'model' => $model,
-        ]);
-    }
-
-    /**
-     * Deletes an existing RouterDetails model.
-     * If deletion is successful, the browser will be redirected to the 'index' page.
-     * @param int $id ID
-     * @return \yii\web\Response
-     * @throws NotFoundHttpException if the model cannot be found
-     */
-    public function actionDelete($id) {
-        $this->findModel($id)->delete();
-
-        return $this->redirect(['index']);
-    }
-
-    /**
      * Finds the RouterDetails model based on its primary key value.
      * If the model is not found, a 404 HTTP exception will be thrown.
      * @param int $id ID
@@ -180,6 +105,9 @@ class RouterDetailsController extends Controller {
         throw new NotFoundHttpException(Yii::t('app', 'The requested page does not exist.'));
     }
 
+    /**
+     * Download CSV file 
+     */
     public function actionDownloadSampleCsv() {
         header('Content-type: application/csv');
         header('Content-Disposition: attachment; filename="router_details_sample.csv"');
@@ -193,6 +121,9 @@ class RouterDetailsController extends Controller {
         exit();
     }
 
+    /**
+     * Download sample Excel file
+     */
     public function actionDownloadSampleExcel() {
         $objPHPExcel = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = 0;
@@ -211,8 +142,8 @@ class RouterDetailsController extends Controller {
 
         $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(1, 2, 'SAP-IN-MHMUM-1234A');
         $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(2, 2, 'INMHMUM1234AAA');
-        $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(3, 2, '255.255.255.255');
-        $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(4, 2, 'D8-9C-67-AE-5B-21');
+        $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(3, 2, '255.254.254.255');
+        $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(4, 2, 'D8-9C-67-AE-5B-22');
 
         header('Content-Type: application/vnd.ms-excel');
         header('Content-Disposition: attachment;filename=router_details_sample.xls');
@@ -233,63 +164,24 @@ class RouterDetailsController extends Controller {
             $hostnames = Yii::$app->request->post('hostname');
             $loopbacks = Yii::$app->request->post('loopback');
             $macAddresses = Yii::$app->request->post('mac_address');
-            $dataProvider = array();
-            $model = new RouterDetails();
+            $validateImportData = array();
             foreach ($sapIds as $key => $sapId) {
-                $hostname = $hostnames[$key];
-                $loopback = $loopbacks[$key];
-                $MacAddr = $macAddresses[$key];
-                $tempDataProvider = array();
-
-                $tempDataProvider['duplicate'] = null;
-                if ($model->validateAlreadyExistsRecord($sapId, $hostname)) {
-                    $tempDataProvider['duplicate'] = $model::DUPLICATE_RECORD_HIGHLIGHT;
-                }
-                if ($model->validateHostnameExistsRecord($hostname)) {
-                    $tempDataProvider['duplicate'] = $model::DUPLICATE_RECORD_HIGHLIGHT;
-                }
-                $duplicateArrayExists = array_filter($dataProvider, function($val) use($sapId, $hostname) {
-                    return ($val['sap_id'] == $sapId and $val['hostname'] == $hostname);
-                });
-                if (count($duplicateArrayExists) > 0) {
-                    $tempDataProvider['duplicate'] = $model::DUPLICATE_RECORD_HIGHLIGHT;
-                }
-                $duplicateHostnameArr = array_filter($dataProvider, function($val) use($hostname) {
-                    return ($val['hostname'] == $hostname);
-                });
-                if (count($duplicateHostnameArr) > 0) {
-                    $tempDataProvider['duplicate'] = $model::DUPLICATE_RECORD_HIGHLIGHT;
-                }
-
-                $tempDataProvider['sap_id'] = $sapId;
-                $tempDataProvider['sap_id_error_class'] = null;
-                if (!$model->validateSAPId($sapId)) {
-                    $tempDataProvider['sap_id_error_class'] = $model::INVALID_RECORD_HIGHLIGHT;
-                }
-
-                $tempDataProvider['hostname'] = $hostname;
-                $tempDataProvider['hostname_error_class'] = null;
-                if (!$model->validateHostname($hostname)) {
-                    $tempDataProvider['hostname_error_class'] = $model::INVALID_RECORD_HIGHLIGHT;
-                }
-
-                $tempDataProvider['loopback'] = $loopback;
-                $tempDataProvider['loopback_error_class'] = null;
-                if (!$model->validateLoopback($loopback)) {
-                    $tempDataProvider['loopback_error_class'] = $model::INVALID_RECORD_HIGHLIGHT;
-                }
-
-                $tempDataProvider['mac_address'] = $MacAddr;
-                $tempDataProvider['mac_address_error_class'] = null;
-                if (!$model->validateMacAddr($MacAddr)) {
-                    $tempDataProvider['mac_address_error_class'] = $model::INVALID_RECORD_HIGHLIGHT;
-                }
-                $dataProvider[] = $tempDataProvider;
+                $tempArr[0] = $sapId;
+                $tempArr[1] = $hostnames[$key];
+                $tempArr[2] = $loopbacks[$key];
+                $tempArr[3] = $macAddresses[$key];
+                $validateImportData[] = $tempArr;
             }
+            $model = new RouterDetails();
+            $dataProvider = $model->validateDataAndReformat($validateImportData);
+            return $dataProvider;
         }
-        return $dataProvider;
     }
 
+    /**
+     * Validate and save, only those record will saved which have no error 
+     * @return object
+     */
     public function actionValidateSave() {
         $model = new RouterDetails();
         if ($this->request->isPost) {
@@ -313,7 +205,7 @@ class RouterDetailsController extends Controller {
                 $successRecord++;
             }
             if ($errorRecord > 0 && $successRecord > 0) {
-                Yii::$app->session->setFlash('warning', 'Records partially saved! Success count- ' . $successRecord . '  Failure Count – ' . $errorRecord . ' ', false);
+                Yii::$app->session->setFlash('warning', 'Records partially saved! Success counts - ' . $successRecord . '  Failure Counts – ' . $errorRecord . ' ', false);
             }
             // All records failed
             if ($errorRecord > 0 && $successRecord == 0) {
@@ -321,13 +213,17 @@ class RouterDetailsController extends Controller {
             }
             // All records successed
             if ($errorRecord == 0 && $successRecord > 0) {
-                Yii::$app->session->setFlash('success', 'Great! All are valid record and saved.', false);
+                Yii::$app->session->setFlash('success', 'Great! All are valid records and saved into DB.', false);
             }
             return $this->redirect('index');
         }
         return $this->redirect('create');
     }
 
+    /**
+     * Import excel, validate it.
+     * @return type
+     */
     public function actionImportExcel() {
         $model = new RouterDetails();
         $model->scenario = 'import-excel';

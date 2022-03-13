@@ -28,7 +28,7 @@ $('#validatecsv').on('click', function (event) {
                 var counter = 0;
                 $.each(response, function (k, v) {
                     var i = counter;
-                    if (($('#sap_id_' + i).length) == 0) {
+                    while (($('#sap_id_' + i).length) == 0) {
                         i = ++counter;
                     }
 
