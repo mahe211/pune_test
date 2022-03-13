@@ -145,6 +145,11 @@ class RouterDetails extends \yii\db\ActiveRecord {
         return filter_var($macAddr, FILTER_VALIDATE_MAC);
     }
 
+    /**
+     * Validate and reformat the input array
+     * @param array $importDataArr 
+     * @return array array of correct data
+     */
     public function validateDataAndReformat($importDataArr) {
         $dataProvider = array();
         foreach ($importDataArr as $key => $importData) {
